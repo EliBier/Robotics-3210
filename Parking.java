@@ -5,7 +5,7 @@ import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import java.util.ArrayList;
 
-@Autonomous(name = "Parking", group = "tabs")
+@Autonomous(name = "Parking2", group = "tabs")
 
 public class Parking extends AutoCommon {
     // global variable for parkingSpotLength
@@ -27,15 +27,15 @@ public class Parking extends AutoCommon {
     private final double SLOW_DOWN_DEGREES = 20.0;      // number of degrees that will be done using the slow power
 
     //Constants for parking
-    private final double MIN_PARKING_LENGTH = 55.00;
+    private final double MIN_PARKING_LENGTH = 53.00;
     private final double MIN_PARKING_DEPTH = 29.00;
-    private static ArrayList<Double[]> parkingSpotDimsCM = new ArrayList<>();
+    private static ArrayList<Double[]> parkingSpots = new ArrayList<>();
 
     private final double power = 0.2;
 
 
     protected double reportDistanceCM() {
-            return robot.distanceSensor.getDistance(DistanceUnit.CM);
+        return robot.distanceSensor.getDistance(DistanceUnit.CM);
     }
 
     protected void driveTillLine(double power) {
@@ -90,14 +90,14 @@ public class Parking extends AutoCommon {
 
         if (degreesMagnitude <= RAMP_CUTOFF + SLOW_DOWN_DEGREES + ANGLE_UNDERSHOOT) {
             System.out.println("small turn; turning slowly");
-            while (Math.abs(getHeading()) <= degreesMagnitude) {
+            while (Math.abs(getHeading()) <= degreesMagnitude && opModeIsActive()) {
                 robot.motorLeft.setPower(-BASEPOWER * direction);
                 robot.motorRight.setPower(BASEPOWER * direction);
             }
 
         } else {
             System.out.println("large turn, turning with ramp and slow down");
-            while (Math.abs(getHeading()) < RAMP_CUTOFF) {
+            while (Math.abs(getHeading()) < RAMP_CUTOFF && opModeIsActive()) {
                 robot.motorLeft.setPower(-curPower);
                 robot.motorRight.setPower(curPower);
 
@@ -106,20 +106,14 @@ public class Parking extends AutoCommon {
             System.out.println("ramped to " + curPower);
 
 
-            while (((getHeading() * direction > 0) ? Math.abs(getHeading()) : 360 - Math.abs(getHeading())) <= degreesMagnitude - SLOW_DOWN_DEGREES - ANGLE_UNDERSHOOT) {
+            while (((getHeading() * direction > 0) ? Math.abs(getHeading()) : 360 - Math.abs(getHeading())) <= degreesMagnitude - SLOW_DOWN_DEGREES - ANGLE_UNDERSHOOT && opModeIsActive()) {
             }
             System.out.println("finished constant speed turn\nsetting speed to slow down speed");
 
-//            while (Math.abs(getHeading()) >= degreesMagnitude - SLOW_DOWN_DEGREES && (Math.abs(getHeading()) <= degreesMagnitude - ANGLE_UNDERSHOOT)) {
-//                curPower = direction*(powerMagnitude - (((degreesMagnitude - Math.abs(getHeading())-ANGLE_UNDERSHOOT) / SLOW_DOWN_DEGREES) * (powerMagnitude - TURN_ENDING_POWER)));
-//                System.out.println(curPower);
-//                robot.motorLeft.setPower(-curPower);
-//                robot.motorRight.setPower(curPower);
-//            }
 
             robot.motorLeft.setPower(-TURN_ENDING_POWER * direction);
             robot.motorRight.setPower(TURN_ENDING_POWER * direction);
-            while (((getHeading() * direction > 0) ? Math.abs(getHeading()) : 360 - Math.abs(getHeading())) < (degreesMagnitude - ANGLE_UNDERSHOOT)) {
+            while (((getHeading() * direction > 0) ? Math.abs(getHeading()) : 360 - Math.abs(getHeading())) < (degreesMagnitude - ANGLE_UNDERSHOOT) && opModeIsActive()) {
                 continue;
             }
         }
@@ -128,71 +122,63 @@ public class Parking extends AutoCommon {
         robot.stopDriveMotors();
     }
     protected void searchForSpace(double power) {
-        distanceMeasurementError = 40;
-        double currentDistance = reportDistanceCM();
-        int parkingSpotBeginningTicks = 0;
-        int parkingSpotEndingTicks;
-        double parkingSpotDepthCM = 10000;
-        boolean spotDetected = false;
+        double currentSpotSize = 0;
+        double lookingForDistance = wallDistance * 1.25;
+        double currentWallDistance;
+        int ticksDriven = robot.motorLeft.getCurrentPosition();
+        boolean spotFound = false;
+        int deltaTicks;
+
         robot.motorLeft.setPower(power);
         robot.motorRight.setPower(power);
-        /*
-        while(Math.abs(wallDistance - currentDistance) < distanceMeasurementError && robot.colorSensor.alpha() < midBrightness) {
-            if (Math.abs(wallDistance - currentDistance) < distanceMeasurementError)
-            currentDistance = reportDistanceCM();
-        }
-        parkingSpotBeginningTicks = robot.motorLeft.getCurrentPosition();
-        while(Math.abs(wallDistance - currentDistance) > distanceMeasurementError && robot.colorSensor.alpha() < midBrightness) {
-            //if (reportDistanceCM()-wallDistance < parkingSpotDepthCM) parkingSpotDepthCM = reportDistanceCM()-wallDistance;
-            currentDistance = reportDistanceCM();
-        }
-        */
-        while (robot.colorSensor.alpha() < midBrightness) {
-            currentDistance = reportDistanceCM();
-            if (currentDistance > distanceMeasurementError+wallDistance && !spotDetected && opModeIsActive()) {
-                robot.stopDriveMotors();
-                telemetry.addData("currentDistance", currentDistance);
-                telemetry.addData("wallDistance", wallDistance);
-                telemetry.addData("threshold", distanceMeasurementError);
-                telemetry.update();
-                parkingSpotBeginningTicks = robot.motorLeft.getCurrentPosition();
-                spotDetected = true;
-                sleep(5000);
-                robot.motorLeft.setPower(power);
-                robot.motorRight.setPower(power);
-            }
-            if (currentDistance > distanceMeasurementError+wallDistance && spotDetected && opModeIsActive()) {
-                telemetry.addData("currentDistance", currentDistance);
-                telemetry.addData("wallDistance", wallDistance);
-                telemetry.addData("threshold", distanceMeasurementError);
-                telemetry.update();
-                spotDetected = false;
-                robot.stopDriveMotors();
-                parkingSpotEndingTicks = robot.motorLeft.getCurrentPosition();
-                parkingSpotLengthCM = robot.convertTicksToDistance(parkingSpotEndingTicks-parkingSpotBeginningTicks);
-                telemetry.addData("ParkingSpaceLength:", parkingSpotLengthCM);
-                telemetry.addData("parkingSpaceDepth", parkingSpotDepthCM);
-                telemetry.update();
-                if (parkingSpotLengthCM >= MIN_PARKING_LENGTH && parkingSpotDepthCM >= MIN_PARKING_DEPTH) {
-                    Double[] temp = {parkingSpotLengthCM, parkingSpotDepthCM, robot.convertTicksToDistance(robot.motorLeft.getCurrentPosition())};
-                    parkingSpotDimsCM.add(temp);
+
+        while (robot.colorSensor.alpha() < midBrightness && opModeIsActive()) {
+            currentWallDistance = reportDistanceCM();
+            deltaTicks = robot.motorLeft.getCurrentPosition() - ticksDriven;
+            if (currentWallDistance >  lookingForDistance && opModeIsActive()) {
+                currentSpotSize += robot.convertTicksToDistance(deltaTicks);
+                if (currentSpotSize > 25) {
+                    spotFound = true;
                 }
-                sleep(5000);
-                robot.motorLeft.setPower(power);
-                robot.motorRight.setPower(power);
-                sleep(100);
+            } else {
+                if (spotFound) {
+                    if (currentSpotSize > MIN_PARKING_LENGTH) {
+                        Double[] temp = {currentSpotSize, robot.convertTicksToDistance(ticksDriven)};
+                        parkingSpots.add(temp);
+                        telemetry.addData("adding parking spot, length", currentSpotSize);
+                        telemetry.addData("total dist CM", robot.convertTicksToDistance(ticksDriven));
+                        telemetry.update();
+                        robot.stopDriveMotors();
+                        sleep(2000);
+                        robot.motorLeft.setPower(power);
+                        robot.motorRight.setPower(power);
+                    } else {
+                        telemetry.addData("parking spot too small", currentSpotSize);
+                        telemetry.update();
+                        spotFound = false;
+                        sleep(500);
+                    }
+                    spotFound = false;
+                }
+                currentSpotSize = 0;
             }
+            ticksDriven = robot.motorLeft.getCurrentPosition();
+            telemetry.addData("currentSpotSize", currentSpotSize);
+            telemetry.addData("wallDist", currentWallDistance);
+            telemetry.addData("lookingForDist", lookingForDistance);
+            telemetry.addData("distance", robot.convertTicksToDistance(deltaTicks));
+            telemetry.update();
         }
     }
 
     protected void parking(double power, Double[] parkingSpot) {
         sleep(1000);
         double totalDistanceTraveled = robot.convertTicksToDistance(robot.motorLeft.getCurrentPosition());
-        drive(power, -(totalDistanceTraveled-parkingSpot[2]-3));
+        drive(power, -(totalDistanceTraveled-parkingSpot[1]));
         sleep(1000);
         drive(power,-parkingSpot[0]/2);
         sleep(100);
-        turnIMU(power,-94);
+        turnIMU(power,-91);
         sleep(100);
         robot.motorLeft.setPower(power);
         robot.motorRight.setPower(power);
@@ -205,9 +191,9 @@ public class Parking extends AutoCommon {
     }
     protected void returnToBase(double power) {
         sleep(500);
-        drive(power, -robot.convertTicksToDistance(robot.motorLeft.getCurrentPosition()));
-        turnIMU(power,-90);
-        drive(power,-20);
+        drive(power, -(robot.convertTicksToDistance(robot.motorLeft.getCurrentPosition())-2.5));
+        turnIMU(power,-91);
+        drive(power,-30);
         robot.stopDriveMotors();
     }
 
@@ -215,6 +201,7 @@ public class Parking extends AutoCommon {
     public void runOpMode() throws InterruptedException {
         super.runOpMode();
 
+        parkingSpots.clear();
         waitForStart();
         driveToCalibrateLightSensor();
         driveTillLine(power);
@@ -225,19 +212,31 @@ public class Parking extends AutoCommon {
         }
         robot.stopDriveMotors();
         robot.resetDriveEncoders();
-        sleep(150);
 
-        int ticks;
-        double wallDist;
-        double CM;
-        robot.motorLeft.setPower(0.15);
-        robot.motorRight.setPower(0.15);
-        while (robot.colorSensor.alpha() < midBrightness && opModeIsActive()) {
-            ticks = robot.motorLeft.getCurrentPosition();
-            wallDist = reportDistanceCM();
-            CM = robot.convertTicksToDistance(ticks);
-            System.out.printf("%d,%f,%f%n",ticks,CM,wallDist);
+
+        while(robot.colorSensor.alpha() < midBrightness && opModeIsActive()) {
+            searchForSpace(power);
         }
         robot.stopDriveMotors();
+        telemetry.addData("spots length", parkingSpots.size());
+        telemetry.update();
+        sleep(2000);
+        if (parkingSpots.isEmpty())  {
+            returnToBase(power+0.15);
+        }
+        else {
+            int minParkingIndex = 0;
+            boolean validSpotFoundToParkTheCarIn = false;
+            for (int i = 0; i < parkingSpots.size(); i++) {
+                telemetry.addData("spot size", parkingSpots.get(i)[0]);
+                telemetry.addData("total dist", parkingSpots.get(i)[1]);
+                telemetry.update();
+                sleep(2000);
+                if (parkingSpots.get(i)[0] < parkingSpots.get(minParkingIndex)[0] && parkingSpots.get(i)[0] > MIN_PARKING_LENGTH) {
+                    minParkingIndex = i;
+                }
+            }
+            parking(power, parkingSpots.get(minParkingIndex));
+        }
     }
 }
