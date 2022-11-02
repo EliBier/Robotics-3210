@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.DigitalChannel;
 import com.qualcomm.robotcore.hardware.DistanceSensor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
 import com.qualcomm.robotcore.util.ReadWriteFile;
 
@@ -28,6 +29,11 @@ public class RobotHardware {
     // drive motors
     public DcMotor motorLeft;
     public DcMotor motorRight;
+    public DcMotor motorArm;
+
+    // servos
+    public Servo servoWrist;
+    public Servo servoGripper;
 
     // sensors
     public BNO055IMU imu;
@@ -35,6 +41,7 @@ public class RobotHardware {
     public DigitalChannel touchSensor;
     public ColorSensor colorSensor;
     public DistanceSensor distanceSensor;
+    public DigitalChannel touchSensorArm;
 
     // useful constants
     public final double STICK_THRESHOLD = 0.2;
@@ -45,6 +52,24 @@ public class RobotHardware {
     public final double TICKS_PER_CM = TICKS_PER_ROTATION / WHEEL_CIRCUMFERENCE;
     public final double DISTANCE_BETWEEN_WHEELS_IN_CM = 36.0;
     public final double TURNING_CIRCLE_CIRCUMFERENCE_IN_CM = DISTANCE_BETWEEN_WHEELS_IN_CM * Math.PI;
+
+    //  *** ARM CONSTANTS ***
+    // constants for controlling the arm
+    public final double ARM_INIT_POWER = -0.15; // init speed of the motor
+    public final double ARM_POWER_UP = 0.3;     // up speed of the motor
+    public final double ARM_POWER_DOWN = -0.2;  // down speed of the motor
+    public final int ARM_MAX_HEIGHT = 2375;     // encoder ticks of upper limit
+
+    // constants for controlling the wrist
+    public static final double WRIST_PICKUP_POS = 0.91; // parallel to ground
+    public final double WRIST_FULLY_DOWN = 0.1;        // minimum position
+    public final double WRIST_FULLY_UP = 1;          // maximum position
+    public final double WRIST_INCREMENT = 0.05;        // delta value
+
+    // constants for controlling the gripper
+    public static final double GRIPPER_FULLY_OPEN = 0.71; // gripper open
+    public final double GRIPPER_FULLY_CLOSED = 0.23;     // gripper closed
+    public final double GRIPPER_INCREMENT = 0.05;        // delta value
 
     public void initializeIMU() {
         //------------------------------------------------------------
@@ -103,9 +128,22 @@ public class RobotHardware {
         motorRight.setDirection(DcMotorSimple.Direction.FORWARD);
         motorRight.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
+        motorArm = hardwareMap.dcMotor.get("motorArm");
+        motorArm.setDirection(DcMotorSimple.Direction.FORWARD);
+        motorArm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        // configure servos
+        servoWrist = hardwareMap.servo.get("servoWrist");
+        servoWrist.setDirection(Servo.Direction.FORWARD);
+
+        servoGripper = hardwareMap.servo.get("servoGripper");
+        servoGripper.setDirection(Servo.Direction.FORWARD);
+
         // configure sensors
         touchSensor = hardwareMap.get(DigitalChannel.class, "touchSensor");
         touchSensor.setMode(DigitalChannel.Mode.INPUT);
+        touchSensorArm = hardwareMap.get(DigitalChannel.class, "touchSensorArm");
+        touchSensorArm.setMode(DigitalChannel.Mode.INPUT);
 
         colorSensor = hardwareMap.get(ColorSensor.class, "colorSensor");
         colorSensor.enableLed(true);
