@@ -1,12 +1,8 @@
 package edu.elon.robotics;
 
-import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.robot.Robot;
 import com.qualcomm.robotcore.util.Range;
-
-import edu.elon.robotics.RobotHardware;
 
 @TeleOp(name = "Block Sort", group = "TeleOp")
 public class BlockSort extends AutoCommon {
@@ -156,6 +152,7 @@ public class BlockSort extends AutoCommon {
     private boolean wasBPressed = false;
     private boolean wasXPressed = false;
     private boolean wasYPressed = false;
+    private boolean wasLBPressed = false;
 
     private void controlHand() {
         // open/close the gripper
@@ -172,11 +169,17 @@ public class BlockSort extends AutoCommon {
             wristPos -= robot.WRIST_INCREMENT;
         }
 
+        if (gamepad1.left_bumper && !wasLBPressed) {
+            setGripperPos(robot.GRIPPER_FULLY_OPEN);
+            setWristPos(0.86);
+        }
+
         // remember button presses
         wasAPressed = gamepad1.a;
         wasBPressed = gamepad1.b;
         wasXPressed = gamepad1.x;
         wasYPressed = gamepad1.y;
+        wasLBPressed = gamepad1.left_bumper;
 
         // limit the servo to possible gripper positions
         gripperPos = Range.clip(gripperPos, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN);
@@ -247,7 +250,7 @@ public class BlockSort extends AutoCommon {
 
     public void returnArmToBase() {
         // initialize the arm
-        robot.motorArm.setPower(robot.ARM_INIT_POWER);
+        robot.motorArm.setPower(robot.ARM_POWER_DOWN);
         while (robot.touchSensorArm.getState()) {
             // do nothing -- waiting for a button press
         }
@@ -255,6 +258,19 @@ public class BlockSort extends AutoCommon {
         // reset the encoder
         robot.motorArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         robot.motorArm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
+    public void setArm(int ticks) {
+        if (ticks > robot.motorArm.getCurrentPosition()) {
+            robot.motorArm.setPower(robot.ARM_POWER_UP);
+            while (robot.motorArm.getCurrentPosition() < ticks && robot.motorArm.getCurrentPosition() < robot.ARM_MAX_HEIGHT) {
+            }
+        } else if (ticks < robot.motorArm.getCurrentPosition()) {
+            robot.motorArm.setPower(robot.ARM_POWER_DOWN);
+            while (robot.motorArm.getCurrentPosition() > ticks && robot.touchSensorArm.getState()) {
+            }
+        }
+        robot.motorArm.setPower(0);
     }
 
     private boolean RedVsBlue() {
@@ -305,37 +321,57 @@ public class BlockSort extends AutoCommon {
     }
 
     public void blockDropOff2() {
-        double horizontal = 60;
-        double vertical = 160;
-        double height = 15;
+        double armLength = 40;
+        double armPivotHeight = 35.5;
+        double thetaMin = 13;
+        double ticksPerArmDeg = 13.8;
+
+        double horizontal = 100;
+        double vertical = 100;
+        double dropHeight = 15;
+
         double boxDistance = Math.sqrt(Math.pow(vertical, 2) + Math.pow(horizontal, 2));
-        double theta = 90.0 - Math.atan2(vertical, horizontal) * 180 / Math.PI;
+        double distanceToDrive = boxDistance - 33 - Math.sqrt(Math.pow(armLength, 2) - Math.pow(armPivotHeight - dropHeight, 2));
+        double thetaBox = 90.0 - Math.atan2(vertical, horizontal) * 180 / Math.PI;
+        double thetaArm = Math.acos((armPivotHeight - dropHeight) / armLength)*180/Math.PI;
+        double wristDropPoint = 1 - (thetaArm / 180);
+        int armRaiseTicks = (int)((thetaArm - thetaMin) * ticksPerArmDeg);
+
         if (gamepad1.right_bumper) {
             boolean isRed = RedVsBlue();
             if (isRed) {
-                turnIMU(0.2, theta);
-                robot.motorArm.setPower(robot.ARM_POWER_UP);
-                while (robot.motorArm.getCurrentPosition() < 1000) {}
-                robot.motorArm.setPower(0);
-                driveIMU(0.2,  -1*(boxDistance - 45));
+                turnIMU(0.2, thetaBox);
+                setArm(armRaiseTicks);
+                driveIMU(0.2,  -1*(distanceToDrive));
+                sleep(150);
+                setWristPos(wristDropPoint);
+                sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
-                driveIMU(0.2, boxDistance - 45);
+                sleep(150);
+                driveIMU(0.2, distanceToDrive);
+                setWristPos(0.87);
                 returnArmToBase();
-                turnIMU(0.2, -1*theta);
+                turnIMU(0.2, -1* thetaBox);
             } else {
-                turnIMU(0.2, -1*theta);
-                robot.motorArm.setPower(robot.ARM_POWER_UP);
-                while (robot.motorArm.getCurrentPosition() < 1000) {}
-                robot.motorArm.setPower(0);
-                driveIMU(-0.2,  -1*(boxDistance - 45));
+                turnIMU(0.2, -1* thetaBox);
+                setArm(armRaiseTicks);
+                driveIMU(-0.2,  -1*(distanceToDrive));
+                sleep(150);
+                setWristPos(wristDropPoint);
+                sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
-                driveIMU(0.2, boxDistance - 45);
+                sleep(150);
+                driveIMU(0.2, distanceToDrive);
+                setWristPos(0.87);
                 returnArmToBase();
-                turnIMU(0.2, theta);
+                turnIMU(0.2, thetaBox);
             }
         }
     }
 
+    public void setWristPos(double position) {
+        robot.servoWrist.setPosition(Range.clip(position, robot.WRIST_FULLY_DOWN, robot.WRIST_FULLY_UP));
+    }
     public void setGripperPos(double position) {
         robot.servoGripper.setPosition(Range.clip(position, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN));
     }
@@ -348,13 +384,23 @@ public class BlockSort extends AutoCommon {
         initializeArm();
 
         waitForStart();
-        double test;
-        double test2;
+//        double test;
+//        double test2;
+//        double armLength = 40;
+//        double armPivotHeight = 35.5;
+//        double dropHeight = 15;
+//        while (opModeIsActive()) {
+//            double thetaArm = Math.acos((armPivotHeight - dropHeight) / armLength)*180/Math.PI;
+//            double wristDropPoint = 1 - (thetaArm / 180);
+//            setWristPos(wristDropPoint);
+//        }
+
         while (opModeIsActive()) {
             stickDriving();
             controlArm();
             controlHand();
             blockDropOff2();
+            telemetry.update();
         }
     }
 }
