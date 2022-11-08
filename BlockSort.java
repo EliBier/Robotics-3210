@@ -123,8 +123,6 @@ public class BlockSort extends AutoCommon {
         }
     }
 
-    private RobotHardware robot;
-
     private void controlArm() {
         double armPower = 0.0;
 
@@ -246,17 +244,36 @@ public class BlockSort extends AutoCommon {
         robot.startMove(drive, turn, robot.DRIVE_SPEED_NORMAL);
     }
     // This returns true if the block is red else it returns false
+
+    public void returnArmToBase() {
+        // initialize the arm
+        robot.motorArm.setPower(robot.ARM_INIT_POWER);
+        while (robot.touchSensorArm.getState()) {
+            // do nothing -- waiting for a button press
+        }
+        robot.motorArm.setPower(0);
+        // reset the encoder
+        robot.motorArm.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        robot.motorArm.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+    }
+
     private boolean RedVsBlue() {
         double red = robot.colorSensor.red();
         double blue = robot.colorSensor.blue();
         if (red > blue) return true;
         else return false;
     }
+
     private void driveRed(int blockDropped) {
         double boxHorizontalDistance = 27;
         double boxVerticalDistance = 15;
-        turnIMU(0.3,90*blockDropped);
-        driveIMU(0.3,boxHorizontalDistance*blockDropped);
+        if (blockDropped > 0 ) {
+            turnIMU(0.3, 90 * blockDropped);
+            driveIMU(0.3, boxHorizontalDistance * blockDropped);
+        } else {
+            driveIMU(0.3, boxHorizontalDistance * blockDropped);
+            turnIMU(0.3, 90 * blockDropped);
+        }
     }
 
     private void driveBlue(int blockDropped) {
@@ -271,35 +288,61 @@ public class BlockSort extends AutoCommon {
             boolean color = RedVsBlue();
             if (color) {
                 driveRed(blockDropped);
-                gripperPos = 0.6;
+                gripperPos = robot.GRIPPER_FULLY_OPEN;
                 // limit the servo to possible gripper positions
-                gripperPos = Range.clip(gripperPos, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN);
-                // set the servo positions
-                robot.servoGripper.setPosition(gripperPos);
+                setGripperPos(gripperPos);
                 blockDropped = -1;
                 driveRed(blockDropped);
             } else {
                 driveBlue(blockDropped);
-                gripperPos = 0.6;
+                gripperPos = robot.GRIPPER_FULLY_OPEN;
                 // limit the servo to possible gripper positions
-                gripperPos = Range.clip(gripperPos, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN);
-                // set the servo positions
-                robot.servoGripper.setPosition(gripperPos);
+                setGripperPos(gripperPos);
                 blockDropped = -1;
                 driveBlue(blockDropped);
             }
         }
+    }
 
+    public void blockDropOff2() {
+        double horizontal = 60;
+        double vertical = 160;
+        double height = 15;
+        double boxDistance = Math.sqrt(Math.pow(vertical, 2) + Math.pow(horizontal, 2));
+        double theta = 90.0 - Math.atan2(vertical, horizontal) * 180 / Math.PI;
+        if (gamepad1.right_bumper) {
+            boolean isRed = RedVsBlue();
+            if (isRed) {
+                turnIMU(0.2, theta);
+                robot.motorArm.setPower(robot.ARM_POWER_UP);
+                while (robot.motorArm.getCurrentPosition() < 1000) {}
+                robot.motorArm.setPower(0);
+                driveIMU(0.2,  -1*(boxDistance - 45));
+                setGripperPos(robot.GRIPPER_FULLY_OPEN);
+                driveIMU(0.2, boxDistance - 45);
+                returnArmToBase();
+                turnIMU(0.2, -1*theta);
+            } else {
+                turnIMU(0.2, -1*theta);
+                robot.motorArm.setPower(robot.ARM_POWER_UP);
+                while (robot.motorArm.getCurrentPosition() < 1000) {}
+                robot.motorArm.setPower(0);
+                driveIMU(-0.2,  -1*(boxDistance - 45));
+                setGripperPos(robot.GRIPPER_FULLY_OPEN);
+                driveIMU(0.2, boxDistance - 45);
+                returnArmToBase();
+                turnIMU(0.2, theta);
+            }
+        }
+    }
 
-
-
-
-
+    public void setGripperPos(double position) {
+        robot.servoGripper.setPosition(Range.clip(position, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN));
     }
 
     @Override
     public void runOpMode() throws InterruptedException {
-        robot = new RobotHardware(hardwareMap);
+        super.runOpMode();
 
         // move the arm to a known location
         initializeArm();
@@ -311,9 +354,7 @@ public class BlockSort extends AutoCommon {
             stickDriving();
             controlArm();
             controlHand();
-            blockDropOff();
-
-
+            blockDropOff2();
         }
     }
 }
