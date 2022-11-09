@@ -242,7 +242,7 @@ public class BlockSort extends AutoCommon {
             turn = 0;
         }
 
-        robot.startMove(drive, turn, robot.DRIVE_SPEED_NORMAL);
+        robot.startMove(drive, turn*0.75, robot.DRIVE_SPEED_NORMAL);
     }
     // This returns true if the block is red else it returns false
 
@@ -326,7 +326,7 @@ public class BlockSort extends AutoCommon {
             double ticksPerArmDeg = 13.8;
 
             double blueHorizontal = 85;
-            double blueVertical = 34;
+            double blueVertical = 30;
             double blueDropHeight = 25;
             double redHorizontal = 120;
             double redVertical = 24;
@@ -346,6 +346,8 @@ public class BlockSort extends AutoCommon {
             double redWristDropPoint = 1 - (redThetaArm / 180);
             int redArmRaiseTicks = (int)((redThetaArm - thetaMin) * ticksPerArmDeg);
 
+            setWristPos(1);
+            sleep(200);
             boolean isRed = RedVsBlue();
             if (isRed) {
                 turnIMU(0.2, redThetaBox);
@@ -356,7 +358,7 @@ public class BlockSort extends AutoCommon {
                 sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
                 sleep(150);
-                driveIMU(0.3, redDistanceToDrive);
+                driveIMU(0.5, redDistanceToDrive);
                 setWristPos(0.87);
                 returnArmToBase();
                 turnIMU(0.2, -1* redThetaBox);
@@ -369,7 +371,7 @@ public class BlockSort extends AutoCommon {
                 sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
                 sleep(150);
-                driveIMU(0.3, blueDistanceToDrive);
+                driveIMU(0.5, blueDistanceToDrive);
                 setWristPos(0.87);
                 returnArmToBase();
                 turnIMU(0.2, blueThetaBox);
