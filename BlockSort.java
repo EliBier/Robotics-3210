@@ -152,7 +152,6 @@ public class BlockSort extends AutoCommon {
     private boolean wasBPressed = false;
     private boolean wasXPressed = false;
     private boolean wasYPressed = false;
-    private boolean wasLBPressed = false;
 
     private void controlHand() {
         // open/close the gripper
@@ -169,9 +168,9 @@ public class BlockSort extends AutoCommon {
             wristPos -= robot.WRIST_INCREMENT;
         }
 
-        if (gamepad1.left_bumper && !wasLBPressed) {
-            setGripperPos(robot.GRIPPER_FULLY_OPEN);
-            setWristPos(0.86);
+        if (gamepad1.left_bumper) {
+            gripperPos = robot.GRIPPER_FULLY_OPEN;
+            wristPos = 0.87;
         }
 
         // remember button presses
@@ -179,7 +178,6 @@ public class BlockSort extends AutoCommon {
         wasBPressed = gamepad1.b;
         wasXPressed = gamepad1.x;
         wasYPressed = gamepad1.y;
-        wasLBPressed = gamepad1.left_bumper;
 
         // limit the servo to possible gripper positions
         gripperPos = Range.clip(gripperPos, robot.GRIPPER_FULLY_CLOSED, robot.GRIPPER_FULLY_OPEN);
@@ -232,7 +230,7 @@ public class BlockSort extends AutoCommon {
      ************************************************************************/
     private void stickDriving() {
         // simple tank drive controls
-        double drive = -gamepad1.left_stick_y;
+        double drive = gamepad1.left_stick_y;
         double turn = gamepad1.right_stick_x;
 
         // create dead zones in case the sticks have drift
@@ -321,51 +319,63 @@ public class BlockSort extends AutoCommon {
     }
 
     public void blockDropOff2() {
-        double armLength = 40;
-        double armPivotHeight = 35.5;
-        double thetaMin = 13;
-        double ticksPerArmDeg = 13.8;
-
-        double horizontal = 100;
-        double vertical = 100;
-        double dropHeight = 15;
-
-        double boxDistance = Math.sqrt(Math.pow(vertical, 2) + Math.pow(horizontal, 2));
-        double distanceToDrive = boxDistance - 33 - Math.sqrt(Math.pow(armLength, 2) - Math.pow(armPivotHeight - dropHeight, 2));
-        double thetaBox = 90.0 - Math.atan2(vertical, horizontal) * 180 / Math.PI;
-        double thetaArm = Math.acos((armPivotHeight - dropHeight) / armLength)*180/Math.PI;
-        double wristDropPoint = 1 - (thetaArm / 180);
-        int armRaiseTicks = (int)((thetaArm - thetaMin) * ticksPerArmDeg);
-
         if (gamepad1.right_bumper) {
+            double armLength = 40;
+            double armPivotHeight = 35.5;
+            double thetaMin = 13;
+            double ticksPerArmDeg = 13.8;
+
+            double blueHorizontal = 85;
+            double blueVertical = 34;
+            double blueDropHeight = 25;
+            double redHorizontal = 120;
+            double redVertical = 24;
+            double redDropHeight = 30;
+
+            double blueBoxDistance = Math.sqrt(Math.pow(blueVertical, 2) + Math.pow(blueHorizontal, 2));
+            double blueDistanceToDrive = blueBoxDistance - 25 - Math.sqrt(Math.pow(armLength, 2) - Math.pow(armPivotHeight - blueDropHeight, 2));
+            double redBoxDistance = Math.sqrt(Math.pow(redVertical, 2) + Math.pow(redHorizontal, 2));
+            double redDistanceToDrive = redBoxDistance - 25 - Math.sqrt(Math.pow(armLength, 2) - Math.pow(armPivotHeight - redDropHeight, 2));
+
+            double blueThetaBox = 90.0 - Math.atan2(blueVertical, blueHorizontal) * 180 / Math.PI;
+            double blueThetaArm = Math.acos((armPivotHeight - blueDropHeight) / armLength)*180/Math.PI;
+            double blueWristDropPoint = 1 - (blueThetaArm / 180);
+            int blueArmRaiseTicks = (int)((blueThetaArm - thetaMin) * ticksPerArmDeg);
+            double redThetaBox = 90.0 - Math.atan2(redVertical, redHorizontal) * 180 / Math.PI;
+            double redThetaArm = Math.acos((armPivotHeight - redDropHeight) / armLength)*180/Math.PI;
+            double redWristDropPoint = 1 - (redThetaArm / 180);
+            int redArmRaiseTicks = (int)((redThetaArm - thetaMin) * ticksPerArmDeg);
+
             boolean isRed = RedVsBlue();
             if (isRed) {
-                turnIMU(0.2, thetaBox);
-                setArm(armRaiseTicks);
-                driveIMU(0.2,  -1*(distanceToDrive));
+                turnIMU(0.2, redThetaBox);
+                setArm(redArmRaiseTicks);
+                driveIMU(0.3,  -1*(redDistanceToDrive));
                 sleep(150);
-                setWristPos(wristDropPoint);
+                setWristPos(redWristDropPoint);
                 sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
                 sleep(150);
-                driveIMU(0.2, distanceToDrive);
+                driveIMU(0.3, redDistanceToDrive);
                 setWristPos(0.87);
                 returnArmToBase();
-                turnIMU(0.2, -1* thetaBox);
+                turnIMU(0.2, -1* redThetaBox);
             } else {
-                turnIMU(0.2, -1* thetaBox);
-                setArm(armRaiseTicks);
-                driveIMU(-0.2,  -1*(distanceToDrive));
+                turnIMU(0.2, -1* blueThetaBox);
+                setArm(blueArmRaiseTicks);
+                driveIMU(-0.3,  -1*(blueDistanceToDrive));
                 sleep(150);
-                setWristPos(wristDropPoint);
+                setWristPos(blueWristDropPoint);
                 sleep(150);
                 setGripperPos(robot.GRIPPER_FULLY_OPEN);
                 sleep(150);
-                driveIMU(0.2, distanceToDrive);
+                driveIMU(0.3, blueDistanceToDrive);
                 setWristPos(0.87);
                 returnArmToBase();
-                turnIMU(0.2, thetaBox);
+                turnIMU(0.2, blueThetaBox);
             }
+            setGripperPos(robot.GRIPPER_FULLY_OPEN);
+            setWristPos(.87);
         }
     }
 
@@ -384,16 +394,6 @@ public class BlockSort extends AutoCommon {
         initializeArm();
 
         waitForStart();
-//        double test;
-//        double test2;
-//        double armLength = 40;
-//        double armPivotHeight = 35.5;
-//        double dropHeight = 15;
-//        while (opModeIsActive()) {
-//            double thetaArm = Math.acos((armPivotHeight - dropHeight) / armLength)*180/Math.PI;
-//            double wristDropPoint = 1 - (thetaArm / 180);
-//            setWristPos(wristDropPoint);
-//        }
 
         while (opModeIsActive()) {
             stickDriving();
