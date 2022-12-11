@@ -70,6 +70,10 @@ public class AutoCommon extends LinearOpMode {
 
 
     }
+    protected void moveForward(double power) {
+        robot.motorLeft.setPower(power);
+        robot.motorRight.setPower(power);
+    }
 
 
     protected void resetAngle() {

@@ -178,21 +178,39 @@ public class TestingLoop extends AutoCommon {
             robot.stopDriveMotors();
         }
     }
+    int counter = 0;
+    private int linePresent() {
+        double alpha = robot.colorSensor.alpha();
+        double red = robot.colorSensor.red();
+        double blue = robot.colorSensor.blue();
+        if (alpha > 400 && (red > 300 || blue > 200)) {
+            // Return 0 indicates blue, return 1 indicates red, return 2 indicates orange
+            // The line is either red or orange
+            if (red > blue) {
+                if (red > 700 || counter == 7) return 2;
+                else {
+                    counter += 1;
+                    return 1;
+                }
+            } else {
+                counter += 1;
+                return 0;
+            }
+        }
+        return -1;
+    }
+
     @Override
     public void runOpMode() throws InterruptedException {
 
         super.runOpMode();
 
+
         waitForStart();
 
-        turnToCalibrateLightSensor();
-        for (int i =0; i < 5; i++) {
-            LINE_KI = LINE_KI + 1*Math.pow(10,-6)*i;
-            telemetry.addData("KI: ", LINE_KI);
+        while(opModeIsActive()) {
+            telemetry.addData("state: ", robot.colorSensor.red());
             telemetry.update();
-            LineFollowPIDControl(0.2, 300, 1);
-            sumError = 0;
-            sleep(5000);
 
         }
     }
